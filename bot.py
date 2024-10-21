@@ -2,22 +2,32 @@ import telebot
 from telebot import types
 import os
 
-
+# Токен вашего бота (рекомендуется использовать переменные окружения)
 TOKEN = 'NONE'
 bot = telebot.TeleBot(TOKEN)
 
 
 SUPPORT_ID = 'NONE'  # Получаем из переменной окружения
-
 # Путь к лог-файлам
 USERS_LOG_FILE = 'users_log.txt'
 QUESTIONS_LOG_FILE = 'questions_log.txt'
 IDEAS_LOG_FILE = 'ideas_log.txt'
+user_ids = []
+
+# Функция для загрузки ID пользователей из файла
+def load_user_ids():
+    global user_ids
+    if os.path.exists(USERS_LOG_FILE):
+        with open(USERS_LOG_FILE, 'r') as f:
+            for line in f:
+                user_id = line.split(",")[0].split(":")[1].strip()
+                user_ids.append(user_id)
 
 # Функция для добавления пользователя в лог
 def log_user(user_id, username):
     with open(USERS_LOG_FILE, 'a') as f:
         f.write(f"ID: {user_id}, Username: {username}\n")
+
 
 # Функция для записи вопросов в лог
 def log_question(content):
@@ -28,6 +38,30 @@ def log_question(content):
 def log_idea(content):
     with open(IDEAS_LOG_FILE, 'a') as f:
         f.write(content + "\n")
+
+# Команда для отправки сообщения всем пользователям
+@bot.message_handler(commands=['all'])
+def broadcast_message(message):
+    if str(message.chat.id) != SUPPORT_ID:  # Проверяем, что команду вызывает техподдержка
+        bot.send_message(message.chat.id, "У вас нет прав для использования этой команды.")
+        return
+
+    msg = bot.send_message(message.chat.id, "Введите сообщение для рассылки:")
+    bot.register_next_step_handler(msg, send_broadcast)
+
+def send_broadcast(message):
+    text = message.text
+    for user_id in user_ids:
+        try:
+            bot.send_message(user_id, text)  # Отправляем сообщение каждому пользователю
+            bot.send_message(message.chat.id, f"Сообщение отправлено пользователю с ID: {user_id}.")
+        except Exception as e:
+            bot.send_message(message.chat.id, f"Не удалось отправить сообщение пользователю {user_id}: {e}")
+
+    bot.send_message(message.chat.id, "Рассылка завершена.")
+
+# Загружаем ID пользователей при старте бота
+load_user_ids()
 
 # Команда /start - приветствие и панель кнопок
 @bot.message_handler(commands=['start'])
