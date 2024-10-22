@@ -233,8 +233,38 @@ def send_ideas_log(message):
     else:
         bot.send_message(message.chat.id, "Лог предложений пуст.")
 
+
+# Функция для удаления повторяющихся ID из лога
+def clear_duplicate_ids():
+    unique_ids = set()
+    temp_file = 'temp_users_log.txt'
+
+    # Читаем из оригинального файла и сохраняем уникальные ID в временный файл
+    with open(USERS_LOG_FILE, 'r') as original:
+        with open(temp_file, 'w') as new_file:
+            for line in original:
+                user_id = line.strip().split(": ")[1]  # Предполагается, что строка вида "ID: <id>"
+                if user_id not in unique_ids:
+                    unique_ids.add(user_id)
+                    new_file.write(line)
+
+    # Заменяем старый файл новым
+    os.replace(temp_file, USERS_LOG_FILE)
+    print("Дубликаты удалены из логов.")
+
+
+# Обработчик команды /clear
+@bot.message_handler(commands=['clear'])
+def clear_logs(message):
+    if message.from_user.id != int(SUPPORT_ID):
+        bot.send_message(message.chat.id, "У вас нет прав для выполнения этой команды.")
+        return
+
+    clear_duplicate_ids()  # Удаляем дубликаты из логов
+    bot.send_message(message.chat.id, "Все дублирующиеся ID удалены из логов.")
+
+
 # Инициализация ID пользователей при запуске бота
 initialize_user_ids()
-
 # Запуск бота
 bot.polling(none_stop=True)
