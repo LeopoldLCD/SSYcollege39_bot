@@ -1,4 +1,3 @@
-Here's a comprehensive `README.md` for your Telegram bot code. You can customize the content as needed to better match your project.
 
 ```markdown
 # Telegram Support Bot
