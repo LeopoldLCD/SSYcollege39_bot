@@ -32,7 +32,7 @@ This is a simple Telegram bot built using the `pyTelegramBotAPI` library. The bo
 3. Update the token variable in the code with your Telegram bot token.
 4. Replace the NONE placeholders in the code with appropriate URLs or messages.
 
-##Usage
+## Usage
 1. Run the bot:
 
    ```bash
