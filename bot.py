@@ -217,29 +217,29 @@ def send_reply_to_user(message, user_id):
 
 # Команда для вывода логов вопросов
 @bot.message_handler(commands=['question_log'])
-def broadcast_message(message):
+def send_questions_log(message):
     if message.from_user.id != int(SUPPORT_ID):
         bot.send_message(message.chat.id, "У вас нет прав для выполнения этой команды.")
         return
-def send_questions_log(message):
-    if os.path.exists(QUESTIONS_LOG_FILE):
-        with open(QUESTIONS_LOG_FILE, 'r') as f:
-            bot.send_message(message.chat.id, f.read())
     else:
-        bot.send_message(message.chat.id, "Лог вопросов пуст.")
+        if os.path.exists(QUESTIONS_LOG_FILE):
+            with open(QUESTIONS_LOG_FILE, 'r') as f:
+                bot.send_message(message.chat.id, f.read())
+        else:
+            bot.send_message(message.chat.id, "Лог вопросов пуст.")
 
 # Команда для вывода логов предложений
 @bot.message_handler(commands=['ideas_log'])
-def broadcast_message(message):
+def send_ideas_log(message):
     if message.from_user.id != int(SUPPORT_ID):
         bot.send_message(message.chat.id, "У вас нет прав для выполнения этой команды.")
         return
-def send_ideas_log(message):
-    if os.path.exists(IDEAS_LOG_FILE):
-        with open(IDEAS_LOG_FILE, 'r') as f:
-            bot.send_message(message.chat.id, f.read())
     else:
-        bot.send_message(message.chat.id, "Лог предложений пуст.")
+        if os.path.exists(IDEAS_LOG_FILE):
+            with open(IDEAS_LOG_FILE, 'r') as f:
+                bot.send_message(message.chat.id, f.read())
+        else:
+            bot.send_message(message.chat.id, "Лог предложений пуст.")
 
 
 # Функция для удаления повторяющихся ID из лога
@@ -267,9 +267,9 @@ def clear_logs(message):
     if message.from_user.id != int(SUPPORT_ID):
         bot.send_message(message.chat.id, "У вас нет прав для выполнения этой команды.")
         return
-
-    clear_duplicate_ids()  # Удаляем дубликаты из логов
-    bot.send_message(message.chat.id, "Все дублирующиеся ID удалены из логов.")
+    else:
+        clear_duplicate_ids()  # Удаляем дубликаты из логов
+        bot.send_message(message.chat.id, "Все дублирующиеся ID удалены из логов.")
 
 
 # Инициализация ID пользователей при запуске бота
