@@ -1,32 +1,88 @@
 import telebot
 from telebot import types
 import os
+import time
+import threading
 
 # Токен вашего бота (рекомендуется использовать переменные окружения)
 TOKEN = 'NONE'
 bot = telebot.TeleBot(TOKEN)
-
 
 SUPPORT_ID = 'NONE'  # Получаем из переменной окружения
 # Путь к лог-файлам
 USERS_LOG_FILE = 'users_log.txt'
 QUESTIONS_LOG_FILE = 'questions_log.txt'
 IDEAS_LOG_FILE = 'ideas_log.txt'
-user_ids = []
+user_ids = set()  # Используем множество для уникальности ID пользователей
 
-# Функция для загрузки ID пользователей из файла
-def load_user_ids():
-    global user_ids
+# Функция для инициализации ID пользователей из лог-файла
+def initialize_user_ids():
     if os.path.exists(USERS_LOG_FILE):
         with open(USERS_LOG_FILE, 'r') as f:
             for line in f:
-                user_id = line.split(",")[0].split(":")[1].strip()
-                user_ids.append(user_id)
+                user_id = line.strip().split(": ")[1]  # Предполагается, что строка вида "ID: <id>"
+                user_ids.add(user_id)
 
 # Функция для добавления пользователя в лог
-def log_user(user_id, username):
+def log_user(user_id):
+    if user_id in user_ids:  # Проверяем, есть ли ID в множестве
+        # Если пользователь уже в логах, можно, например, вывести сообщение
+        print(f"Пользователь с ID {user_id} уже существует в логах. Удаляем повторный.")
+        remove_user_from_log(user_id)  # Удаляем старую запись
+
     with open(USERS_LOG_FILE, 'a') as f:
-        f.write(f"ID: {user_id}, Username: {username}\n")
+        f.write(f"ID: {user_id}\n")
+    user_ids.add(user_id)  # Добавляем ID в множество
+
+# Функция для удаления пользователя из лога
+def remove_user_from_log(user_id):
+    # Создаем временный файл для записи всех пользователей, кроме удаляемого
+    temp_file = 'temp_users_log.txt'
+    with open(USERS_LOG_FILE, 'r') as original:
+        with open(temp_file, 'w') as new_file:
+            for line in original:
+                if line.strip() != f"ID: {user_id}":
+                    new_file.write(line)
+    # Заменяем старый файл новым
+    os.replace(temp_file, USERS_LOG_FILE)
+
+
+@bot.message_handler(commands=['all'])
+def broadcast_message(message):
+    if message.from_user.id != int(SUPPORT_ID):
+        bot.send_message(message.chat.id, "У вас нет прав для выполнения этой команды.")
+        return
+
+    # Запрашиваем текст и изображение
+    bot.send_message(message.chat.id, "Введите текст для рассылки:")
+    bot.register_next_step_handler(message, process_broadcast_text)
+
+
+def process_broadcast_text(message):
+    broadcast_text = message.text
+    bot.send_message(message.chat.id, "Пожалуйста, отправьте изображение для рассылки.")
+    bot.register_next_step_handler(message, process_broadcast_image, broadcast_text)
+
+
+def process_broadcast_image(message, broadcast_text):
+    if message.content_type != 'photo':
+        bot.send_message(message.chat.id, "Пожалуйста, отправьте изображение.")
+        bot.register_next_step_handler(message, process_broadcast_image, broadcast_text)
+        return
+
+    image_file_id = message.photo[-1].file_id
+    bot.send_message(message.chat.id, "Начинаем рассылку...")
+
+    threading.Thread(target=send_broadcast, args=(broadcast_text, image_file_id)).start()
+
+
+def send_broadcast(text, image_file_id):
+    for user_id in user_ids:
+        try:
+            bot.send_photo(user_id, image_file_id, text)
+            time.sleep(1)  # Задержка в 1 секунду между отправками
+        except Exception as e:
+            print(f"Не удалось отправить сообщение пользователю {user_id}: {e}")
 
 
 # Функция для записи вопросов в лог
@@ -39,34 +95,10 @@ def log_idea(content):
     with open(IDEAS_LOG_FILE, 'a') as f:
         f.write(content + "\n")
 
-# Команда для отправки сообщения всем пользователям
-@bot.message_handler(commands=['all'])
-def broadcast_message(message):
-    if str(message.chat.id) != SUPPORT_ID:  # Проверяем, что команду вызывает техподдержка
-        bot.send_message(message.chat.id, "У вас нет прав для использования этой команды.")
-        return
-
-    msg = bot.send_message(message.chat.id, "Введите сообщение для рассылки:")
-    bot.register_next_step_handler(msg, send_broadcast)
-
-def send_broadcast(message):
-    text = message.text
-    for user_id in user_ids:
-        try:
-            bot.send_message(user_id, text)  # Отправляем сообщение каждому пользователю
-            bot.send_message(message.chat.id, f"Сообщение отправлено пользователю с ID: {user_id}.")
-        except Exception as e:
-            bot.send_message(message.chat.id, f"Не удалось отправить сообщение пользователю {user_id}: {e}")
-
-    bot.send_message(message.chat.id, "Рассылка завершена.")
-
-# Загружаем ID пользователей при старте бота
-load_user_ids()
-
 # Команда /start - приветствие и панель кнопок
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    log_user(message.chat.id, message.from_user.username)  # Логирование пользователя
+    log_user(message.chat.id)  # Логирование пользователя
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     btn_question = types.KeyboardButton("❓ Задать вопрос ССУ")
     btn_idea = types.KeyboardButton("💡 Предложение/Замечание")
@@ -184,7 +216,7 @@ def send_reply_to_user(message, user_id):
     bot.send_message(SUPPORT_ID, "Ответ отправлен пользователю.")
 
 # Команда для вывода логов вопросов
-@bot.message_handler(commands=['NONE'])
+@bot.message_handler(commands=['questions_log'])
 def send_questions_log(message):
     if os.path.exists(QUESTIONS_LOG_FILE):
         with open(QUESTIONS_LOG_FILE, 'r') as f:
@@ -193,13 +225,16 @@ def send_questions_log(message):
         bot.send_message(message.chat.id, "Лог вопросов пуст.")
 
 # Команда для вывода логов предложений
-@bot.message_handler(commands=['NONE'])
+@bot.message_handler(commands=['ideas_log'])
 def send_ideas_log(message):
     if os.path.exists(IDEAS_LOG_FILE):
         with open(IDEAS_LOG_FILE, 'r') as f:
             bot.send_message(message.chat.id, f.read())
     else:
         bot.send_message(message.chat.id, "Лог предложений пуст.")
+
+# Инициализация ID пользователей при запуске бота
+initialize_user_ids()
 
 # Запуск бота
 bot.polling(none_stop=True)
