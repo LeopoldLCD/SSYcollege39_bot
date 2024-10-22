@@ -39,7 +39,7 @@ This is a simple Telegram bot built using the `pyTelegramBotAPI` library. The bo
    python bot.py
 2. Interact with the bot via Telegram:
 
-- **Start the bot using the command /start.
-- **Choose an option from the menu.
-- **Use the appropriate commands for notifications or personal messages.
+- Start the bot using the command /start.
+- Choose an option from the menu.
+- Use the appropriate commands for notifications or personal messages.
 
