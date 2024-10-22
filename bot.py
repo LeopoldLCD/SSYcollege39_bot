@@ -216,7 +216,11 @@ def send_reply_to_user(message, user_id):
     bot.send_message(SUPPORT_ID, "Ответ отправлен пользователю.")
 
 # Команда для вывода логов вопросов
-@bot.message_handler(commands=['questions_log'])
+@bot.message_handler(commands=['question_log'])
+def broadcast_message(message):
+    if message.from_user.id != int(SUPPORT_ID):
+        bot.send_message(message.chat.id, "У вас нет прав для выполнения этой команды.")
+        return
 def send_questions_log(message):
     if os.path.exists(QUESTIONS_LOG_FILE):
         with open(QUESTIONS_LOG_FILE, 'r') as f:
@@ -226,6 +230,10 @@ def send_questions_log(message):
 
 # Команда для вывода логов предложений
 @bot.message_handler(commands=['ideas_log'])
+def broadcast_message(message):
+    if message.from_user.id != int(SUPPORT_ID):
+        bot.send_message(message.chat.id, "У вас нет прав для выполнения этой команды.")
+        return
 def send_ideas_log(message):
     if os.path.exists(IDEAS_LOG_FILE):
         with open(IDEAS_LOG_FILE, 'r') as f:
